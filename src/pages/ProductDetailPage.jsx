@@ -1,7 +1,11 @@
+import { useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import { ProductDetailSection } from '../sections';
 import { products } from '../data/products';
-import { CartProvider } from '../contexts';
+import { CartProvider, useTimeline } from '../contexts';
+import { createAppTheme } from '../styles/themes/theme';
 
 /**
  * 제품별 메타데이터 (가격, 품번, 리드타임, 배송일)
@@ -28,20 +32,25 @@ const PRODUCT_META = {
  * ProductDetailPage 컴포넌트
  *
  * URL 파라미터로 제품 ID를 받아 해당 제품의 상세 페이지를 표시.
+ * LandingPage의 timeline 상태를 유지하여 일관된 다크모드 경험 제공.
  *
  * 동작 방식:
  * 1. useParams로 URL의 productId 파라미터 추출
- * 2. products 배열에서 해당 id를 가진 제품 검색
- * 3. 제품을 찾지 못하면 루트 경로로 리다이렉트
- * 4. 제품을 찾으면 ProductDetailSection에 제품 데이터와 메타정보 전달
- * 5. CartProvider로 전체 페이지를 감싸서 장바구니 상태 제공
+ * 2. useTimeline으로 전역 timeline 상태 구독
+ * 3. products 배열에서 해당 id를 가진 제품 검색
+ * 4. 제품을 찾지 못하면 루트 경로로 리다이렉트
+ * 5. timeline 값에 따라 다크모드 전환 (timeline >= 0.67)
+ * 6. ProductDetailSection에 제품 데이터와 메타정보 전달
+ * 7. CartProvider로 장바구니 상태 제공
  *
  * Props:
  * - 없음 (URL 파라미터 사용)
  *
  * Example usage:
  * // React Router 설정에서
- * <Route path="/product/:productId" element={<ProductDetailPage />} />
+ * <TimelineProvider>
+ *   <Route path="/product/:productId" element={<ProductDetailPage />} />
+ * </TimelineProvider>
  *
  * // URL 예시
  * /product/1  → Lumen Desk Pro 페이지
@@ -49,6 +58,7 @@ const PRODUCT_META = {
  */
 export function ProductDetailPage() {
   const { productId } = useParams();
+  const { timeline } = useTimeline();
 
   // URL 파라미터를 숫자로 변환
   const id = parseInt(productId, 10);
@@ -69,15 +79,24 @@ export function ProductDetailPage() {
     shipDate: 'Jan 15, 2025',
   };
 
+  // timeline 값에 따라 다크모드 전환 (LandingPage와 동일한 로직)
+  const theme = useMemo(() => {
+    const mode = timeline >= 0.67 ? 'dark' : 'light';
+    return createAppTheme(mode);
+  }, [timeline]);
+
   return (
-    <CartProvider>
-      <ProductDetailSection
-        product={product}
-        price={meta.price}
-        itemNumber={meta.itemNumber}
-        leadTime={meta.leadTime}
-        shipDate={meta.shipDate}
-      />
-    </CartProvider>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <CartProvider>
+        <ProductDetailSection
+          product={product}
+          price={meta.price}
+          itemNumber={meta.itemNumber}
+          leadTime={meta.leadTime}
+          shipDate={meta.shipDate}
+        />
+      </CartProvider>
+    </ThemeProvider>
   );
 }
